@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; \ = require 'bootstrap/app.php'; \->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); \ = new App\Http\Controllers\MechanicController(); \ = Illuminate\Http\Request::create('/api/mechanic/bookings', 'GET'); \ = \->index(\); echo \->getContent();
