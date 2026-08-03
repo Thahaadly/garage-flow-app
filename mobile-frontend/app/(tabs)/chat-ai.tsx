@@ -57,8 +57,8 @@ export default function ChatAiScreen() {
     setIsLoading(true);
 
     try {
-      const response = await apiPost<{ reply?: string }>('/chat', { message: userText });
-      const replyText = response.data?.reply ?? 'Maaf, saya belum bisa menjawab saat ini.';
+      const response = await apiPost<any>('/chat', { message: userText });
+      const replyText = response.data?.data?.reply ?? response.data?.reply ?? 'Maaf, saya belum bisa menjawab saat ini.';
       const aiMessage: ChatMessage = {
         id: `a-${Date.now()}`,
         role: 'ai',
@@ -68,8 +68,8 @@ export default function ChatAiScreen() {
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       const errorReply =
-        isAxiosError(error) && typeof error.response?.data?.reply === 'string'
-          ? error.response?.data?.reply
+        isAxiosError(error) 
+          ? (error.response?.data?.data?.reply || error.response?.data?.meta?.message || error.response?.data?.reply)
           : null;
       const errorMessage: ChatMessage = {
         id: `a-${Date.now()}`,

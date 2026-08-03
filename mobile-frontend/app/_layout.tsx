@@ -25,15 +25,21 @@ export default function RootLayout() {
       const role = await getRole();
       const isOnLogin = segments[0] === 'login';
 
-      if (!token && !isOnLogin) {
+      if (!token && !isOnLogin && segments[0] !== 'register') {
         router.replace('/login');
       }
 
-      if (token && isOnLogin) {
-        if (role === 'Mekanik' || role === 'Admin') {
-            router.replace('/(mechanic)');
-        } else {
-            router.replace('/(tabs)');
+      if (token) {
+        const isMechanicOrAdmin = role === 'Mekanik' || role === 'Admin';
+        const inMechanicGroup = segments[0] === '(mechanic)';
+        const inTabsGroup = segments[0] === '(tabs)';
+        const inPayment = segments[0] === 'payment';
+        const inService = (segments[0] as string) === 'service';
+
+        if (isMechanicOrAdmin && !inMechanicGroup && !inPayment && !inService) {
+          router.replace('/(mechanic)');
+        } else if (!isMechanicOrAdmin && !inTabsGroup && !inPayment && !inService) {
+          router.replace('/(tabs)');
         }
       }
 

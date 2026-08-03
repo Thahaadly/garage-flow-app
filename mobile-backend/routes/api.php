@@ -34,8 +34,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [ServiceController::class, 'store']);
         Route::put('/services/{service}', [ServiceController::class, 'update']);
         Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
-        
-        Route::put('/bookings/{booking}/status', [BookingController::class, 'updateStatus']); // Admin updates status
     });
 
     // Mekanik Only Routes
@@ -68,7 +66,6 @@ Route::middleware(['auth:sanctum', 'role:Admin'])->prefix('admin')->group(functi
     Route::get('bookings', [AdminBookingController::class, 'index']);
     Route::get('bookings/{booking}', [AdminBookingController::class, 'show']);
     Route::put('bookings/{booking}', [AdminBookingController::class, 'update']);
-    Route::get('all-bookings', [\App\Http\Controllers\BookingController::class, 'allBookings']);
 
     Route::get('categories', [AdminCategoryController::class, 'index']);
     Route::post('categories', [AdminCategoryController::class, 'store']);

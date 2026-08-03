@@ -18,8 +18,9 @@ class BookingFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'vehicle_id' => \App\Models\Vehicle::factory(),
             'service_id' => Service::factory(),
-            'scheduled_at' => now()->addDays(3)->setTime(10, 0),
+            'booking_date' => now()->addDays(3)->setTime(10, 0),
             'status' => 'pending',
             'notes' => fake()->optional()->sentence(),
         ];

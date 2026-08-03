@@ -14,7 +14,7 @@ class AdminBookingController extends Controller
 {
     use ApiResponse;
 
-    private const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
+    private const STATUSES = ['scheduled', 'pending', 'pending_payment', 'confirmed', 'in_progress', 'completed', 'cancelled'];
 
     public function index(Request $request)
     {

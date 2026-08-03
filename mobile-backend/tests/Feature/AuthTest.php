@@ -10,6 +10,12 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Spatie\Permission\Models\Role::create(['name' => 'Customer', 'guard_name' => 'web']);
+    }
+
     private function registerPayload(array $overrides = []): array
     {
         return array_merge([
@@ -26,7 +32,7 @@ class AuthTest extends TestCase
 
     public function test_register_with_valid_data(): void
     {
-        $response = $this->postJson('/api/auth/register', $this->registerPayload());
+        $response = $this->postJson('/api/register', $this->registerPayload());
 
         $response->assertStatus(201)
             ->assertJsonStructure([
@@ -45,7 +51,7 @@ class AuthTest extends TestCase
     {
         User::factory()->create(['email' => 'test@example.com']);
 
-        $response = $this->postJson('/api/auth/register', $this->registerPayload());
+        $response = $this->postJson('/api/register', $this->registerPayload());
 
         $response->assertStatus(422);
 
@@ -63,7 +69,7 @@ class AuthTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/login', [
             'email' => 'test@example.com',
             'password' => 'password123',
         ]);
@@ -86,7 +92,7 @@ class AuthTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/login', [
             'email' => 'test@example.com',
             'password' => 'wrongpassword',
         ]);
@@ -103,7 +109,7 @@ class AuthTest extends TestCase
         $token = $user->createToken('mobile')->plainTextToken;
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->postJson('/api/auth/logout');
+            ->postJson('/api/logout');
 
         $response->assertStatus(200)
             ->assertJsonPath('meta.status', 'success');

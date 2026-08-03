@@ -11,7 +11,7 @@ class AdminOnly
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== 'admin') {
+        if (! $user || !$user->hasRole('Admin')) {
             return response()->json([
                 'meta' => [
                     'code' => 403,

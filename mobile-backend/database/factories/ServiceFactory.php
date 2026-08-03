@@ -16,8 +16,8 @@ class ServiceFactory extends Factory
     {
         return [
             'name' => fake()->unique()->words(2, true),
-            'duration' => fake()->randomElement([30, 45, 60]),
-            'price' => fake()->numberBetween(50000, 300000),
+            'estimated_duration' => fake()->randomElement([30, 45, 60]),
+            'estimated_price' => fake()->numberBetween(50000, 300000),
         ];
     }
 }

@@ -16,15 +16,18 @@ class BookingTest extends TestCase
 
     private Service $service;
 
+    private \App\Models\Vehicle $vehicle;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->user = User::factory()->create();
+        $this->vehicle = \App\Models\Vehicle::factory()->create(['user_id' => $this->user->id]);
         $this->service = Service::factory()->create([
             'name' => 'Servis Ringan',
-            'duration' => 45,
-            'price' => 150000,
+            'estimated_duration' => 45,
+            'estimated_price' => 150000,
         ]);
     }
 
@@ -34,6 +37,7 @@ class BookingTest extends TestCase
     {
         Booking::factory()->count(3)->create([
             'user_id' => $this->user->id,
+            'vehicle_id' => $this->vehicle->id,
             'service_id' => $this->service->id,
         ]);
 
@@ -46,7 +50,7 @@ class BookingTest extends TestCase
             ->assertJsonStructure([
                 'meta' => ['code', 'status', 'message'],
                 'data' => [
-                    '*' => ['id', 'user_id', 'service_id', 'scheduled_at', 'status'],
+                    '*' => ['id', 'user_id', 'service_id', 'booking_date', 'status'],
                 ],
                 'pagination',
             ]);
@@ -61,19 +65,20 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/bookings', [
                 'service_id' => $this->service->id,
-                'scheduled_at' => $scheduledAt,
+                'vehicle_id' => $this->vehicle->id,
+                'booking_date' => $scheduledAt,
                 'notes' => 'First booking',
             ]);
 
         $response->assertStatus(201)
             ->assertJsonPath('meta.status', 'success')
-            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.status', 'scheduled')
             ->assertJsonPath('data.notes', 'First booking');
 
         $this->assertDatabaseHas('bookings', [
             'user_id' => $this->user->id,
             'service_id' => $this->service->id,
-            'status' => 'pending',
+            'status' => 'scheduled',
         ]);
     }
 
@@ -84,7 +89,8 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/bookings', [
                 'service_id' => $this->service->id,
-                'scheduled_at' => $pastDate,
+                'vehicle_id' => $this->vehicle->id,
+                'booking_date' => $pastDate,
             ]);
 
         $response->assertStatus(422)
@@ -97,6 +103,7 @@ class BookingTest extends TestCase
     {
         $booking = Booking::factory()->create([
             'user_id' => $this->user->id,
+            'vehicle_id' => $this->vehicle->id,
             'service_id' => $this->service->id,
         ]);
 
@@ -111,8 +118,10 @@ class BookingTest extends TestCase
     public function test_show_other_users_booking(): void
     {
         $otherUser = User::factory()->create();
+        $otherVehicle = \App\Models\Vehicle::factory()->create(['user_id' => $otherUser->id]);
         $booking = Booking::factory()->create([
             'user_id' => $otherUser->id,
+            'vehicle_id' => $otherVehicle->id,
             'service_id' => $this->service->id,
         ]);
 
@@ -129,6 +138,7 @@ class BookingTest extends TestCase
     {
         $booking = Booking::factory()->create([
             'user_id' => $this->user->id,
+            'vehicle_id' => $this->vehicle->id,
             'service_id' => $this->service->id,
             'status' => 'pending',
         ]);

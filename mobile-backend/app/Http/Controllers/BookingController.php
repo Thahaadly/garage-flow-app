@@ -34,6 +34,30 @@ class BookingController extends Controller
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 10));
 
+        // Auto-sync status with Midtrans for pending_payment
+        foreach ($bookings as $booking) {
+            if ($booking->status === 'pending_payment') {
+                $payment = \App\Models\Payment::where('booking_id', $booking->id)->first();
+                if ($payment && $payment->order_id) {
+                    try {
+                        \Midtrans\Config::$serverKey = config('midtrans.server_key');
+                        \Midtrans\Config::$isProduction = config('midtrans.is_production');
+                        $midtransStatus = \Midtrans\Transaction::status($payment->order_id);
+                        
+                        if (in_array($midtransStatus->transaction_status, ['settlement', 'capture'])) {
+                            $booking->update(['status' => 'confirmed']);
+                            $payment->update(['status' => 'paid']);
+                        } elseif (in_array($midtransStatus->transaction_status, ['cancel', 'deny', 'expire'])) {
+                            $booking->update(['status' => 'cancelled']);
+                            $payment->update(['status' => 'failed']);
+                        }
+                    } catch (\Exception $e) {
+                        // Ignore if transaction not found in Midtrans
+                    }
+                }
+            }
+        }
+
         // Use custom resource or paginatedResponse if BookingResource hasn't been updated for new columns
         // For simplicity we will just return it as a resource response
         return $this->paginatedResponse($bookings, BookingResource::class, 'Booking list');
@@ -148,52 +172,5 @@ class BookingController extends Controller
         ], 'Schedule slots');
     }
 
-    // --- Role-specific methods below ---
 
-    public function updateStatus(Request $request, Booking $booking)
-    {
-        // Admin updates status (e.g., from pending_payment to confirmed, etc)
-        $validated = $request->validate([
-            'status' => ['required', 'in:' . implode(',', self::STATUSES)],
-        ]);
-
-        $booking->update(['status' => $validated['status']]);
-
-        return $this->resourceResponse(
-            $booking->fresh()->load('service'),
-            'Status pemesanan berhasil diperbarui oleh Admin'
-        );
-    }
-
-    public function mekanikJobs(Request $request)
-    {
-        // Mechanic views confirmed/pending jobs
-        $jobs = Booking::with('service', 'user')
-            ->whereIn('status', ['confirmed', 'completed'])
-            ->orderBy('booking_date', 'asc')
-            ->get();
-
-        return $this->resourceResponse($jobs, 'Daftar Pekerjaan Mekanik');
-    }
-
-    public function updateJobStatus(Request $request, Booking $booking)
-    {
-        $validated = $request->validate([
-            'status' => ['required', 'in:completed'], // mechanic can mark as completed
-        ]);
-
-        $booking->update(['status' => $validated['status']]);
-
-        return $this->resourceResponse(
-            $booking->fresh()->load('service'),
-            'Pekerjaan berhasil diselesaikan'
-        );
-    }
-
-    public function allBookings(Request $request)
-    {
-        // Shared between Admin and Mekanik
-        $bookings = Booking::with('service', 'user')->orderBy('booking_date', 'desc')->paginate(20);
-        return $this->resourceResponse($bookings, 'Semua pemesanan servis');
-    }
 }

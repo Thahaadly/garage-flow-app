@@ -41,3 +41,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Ignore large 3D models (>100MB)
+assets/models/toyota_fortuner.glb
+public/models/

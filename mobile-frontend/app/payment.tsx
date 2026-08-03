@@ -4,6 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import twrnc from 'twrnc';
 import { apiPost, apiGet } from '@/src/lib/api';
+import * as Linking from 'expo-linking';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { showPlatformAlert } from '@/src/utils/alert';
@@ -13,13 +14,13 @@ type SnapResponse = {
     snap_token: string;
     order_id: string;
     client_key: string;
+    redirect_url?: string;
   };
 };
 
 export default function PaymentScreen() {
   const { booking_id } = useLocalSearchParams<{ booking_id: string }>();
-  const [snapToken, setSnapToken] = useState<string | null>(null);
-  const [clientKey, setClientKey] = useState<string | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,13 +33,30 @@ export default function PaymentScreen() {
 
     const fetchSnapToken = async () => {
       try {
+        // Create return URL dynamically based on platform
+        let returnUrl = '';
+        if (Platform.OS === 'web') {
+          returnUrl = window.location.origin + '/';
+        } else {
+          returnUrl = Linking.createURL('/');
+        }
+
+        // Buat transaksi untuk mendapatkan redirect_url
         const response = await apiPost<SnapResponse>('/payments/transaction', {
           booking_id: booking_id,
+          return_url: returnUrl
         });
 
         if (response.data?.data?.snap_token) {
-          setSnapToken(response.data.data.snap_token);
-          setClientKey(response.data.data.client_key);
+          if (response.data.data.redirect_url) {
+            setRedirectUrl(response.data.data.redirect_url);
+          } else {
+            // Fallback manually construct URL just in case
+            const isProd = response.data.data.client_key && !response.data.data.client_key.startsWith('SB-');
+            setRedirectUrl(isProd 
+              ? `https://app.midtrans.com/snap/v2/vtweb/${response.data.data.snap_token}`
+              : `https://app.sandbox.midtrans.com/snap/v2/vtweb/${response.data.data.snap_token}`);
+          }
         } else {
           setError('Gagal mendapatkan token pembayaran dari server.');
         }
@@ -52,66 +70,14 @@ export default function PaymentScreen() {
     fetchSnapToken();
   }, [booking_id]);
 
-  useEffect(() => {
-    if (Platform.OS === 'web' && snapToken && clientKey) {
-      const openMidtransSnap = () => {
-        if ((window as any).snap) {
-          (window as any).snap.pay(snapToken, {
-            onSuccess: async function (result: any) {
-              // Local Dev: Sync status manually before redirecting
-              try {
-                await apiGet(`/payments/${booking_id}/sync-status`);
-              } catch {}
-              router.replace('/(tabs)');
-            },
-            onPending: async function (result: any) {
-              try {
-                await apiGet(`/payments/${booking_id}/sync-status`);
-              } catch {}
-              router.replace('/(tabs)');
-            },
-            onError: function (result: any) {
-              showPlatformAlert('Gagal', 'Pembayaran gagal.');
-              router.back();
-            },
-            onClose: function () {
-              router.back();
-            }
-          });
-        }
-      };
 
-      const scriptId = 'midtrans-script';
-      let script = document.getElementById(scriptId) as HTMLScriptElement;
-      
-      if (!script) {
-        script = document.createElement('script');
-        script.id = scriptId;
-        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
-        script.setAttribute('data-client-key', clientKey);
-        
-        script.onload = () => {
-          openMidtransSnap();
-        };
-        
-        document.body.appendChild(script);
-      } else {
-        openMidtransSnap();
-      }
-    }
-  }, [snapToken, clientKey, booking_id]);
 
   const handleNavigationStateChange = (navState: any) => {
     if (navState.url.includes('transaction_status=settlement') || navState.url.includes('transaction_status=capture')) {
-      // For local development, sync manually since webhooks might not reach local IP
-      apiGet(`/payments/${booking_id}/sync-status`).catch(() => {});
-      
       showPlatformAlert('Sukses', 'Pembayaran berhasil diselesaikan!', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') }
       ]);
     } else if (navState.url.includes('transaction_status=cancel') || navState.url.includes('transaction_status=deny')) {
-      apiGet(`/payments/${booking_id}/sync-status`).catch(() => {});
-      
       showPlatformAlert('Batal', 'Pembayaran dibatalkan atau ditolak.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') }
       ]);
@@ -141,21 +107,21 @@ export default function PaymentScreen() {
     );
   }
 
-  if (snapToken) {
+  if (redirectUrl) {
     if (Platform.OS === 'web') {
+      window.location.href = redirectUrl;
       return (
         <ThemedView style={twrnc`flex-1 items-center justify-center bg-white`}>
           <ActivityIndicator size="large" color="#0f172a" />
-          <ThemedText style={twrnc`mt-4 text-slate-600`}>Menunggu pembayaran...</ThemedText>
+          <ThemedText style={twrnc`mt-4 text-slate-600`}>Mengarahkan ke halaman pembayaran Midtrans...</ThemedText>
         </ThemedView>
       );
     }
 
-    const snapUrl = `https://app.sandbox.midtrans.com/snap/v2/vtweb/${snapToken}`;
     return (
       <View style={styles.container}>
         <WebView
-          source={{ uri: snapUrl }}
+          source={{ uri: redirectUrl }}
           onNavigationStateChange={handleNavigationStateChange}
           startInLoadingState={true}
           renderLoading={() => (

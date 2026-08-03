@@ -1,14 +1,7 @@
 import { Modal, Pressable, Text, View } from 'react-native';
 import twrnc from 'twrnc';
 
-type ActiveBookingDetails = {
-  id: number;
-  serviceName: string;
-  scheduledAt: string;
-  status: string;
-  total_price?: number;
-  items?: any[];
-};
+import type { ActiveBookingDetails } from '@/src/types';
 
 type ActiveBookingModalProps = {
   visible: boolean;

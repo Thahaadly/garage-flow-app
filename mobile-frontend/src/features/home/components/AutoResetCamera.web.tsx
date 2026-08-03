@@ -11,17 +11,17 @@ export function AutoResetCamera({ controlsRef, defaultPosition }: { controlsRef:
     const controls = controlsRef.current;
     if (!controls) return;
 
-    let timeout: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     const handleStart = () => {
       setIsInteracting(true);
       setShouldReset(false);
-      clearTimeout(timeout);
+      clearTimeout(timeoutId);
     };
 
     const handleEnd = () => {
       setIsInteracting(false);
-      timeout = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setShouldReset(true);
       }, 2000);
     };
@@ -32,7 +32,7 @@ export function AutoResetCamera({ controlsRef, defaultPosition }: { controlsRef:
     return () => {
       controls.removeEventListener('start', handleStart);
       controls.removeEventListener('end', handleEnd);
-      clearTimeout(timeout);
+      clearTimeout(timeoutId);
     };
   }, [controlsRef]);
 

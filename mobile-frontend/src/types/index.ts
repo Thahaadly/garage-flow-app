@@ -56,3 +56,12 @@ export type Vehicle = {
   battery_health?: string | null;
   tire_condition?: number | null;
 };
+
+export type ActiveBookingDetails = {
+  id: number;
+  serviceName: string;
+  scheduledAt: string;
+  status: string;
+  total_price?: number;
+  items?: any[];
+};

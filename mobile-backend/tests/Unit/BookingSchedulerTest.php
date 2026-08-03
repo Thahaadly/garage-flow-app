@@ -25,8 +25,8 @@ class BookingSchedulerTest extends TestCase
         $this->scheduler = new BookingScheduler();
         $this->service = Service::factory()->create([
             'name' => 'Test Service',
-            'duration' => 30,
-            'price' => 100000,
+            'estimated_duration' => 30,
+            'estimated_price' => 100000,
         ]);
     }
 
@@ -127,7 +127,7 @@ class BookingSchedulerTest extends TestCase
             Booking::factory()->create([
                 'user_id' => $user->id,
                 'service_id' => $this->service->id,
-                'scheduled_at' => $scheduledAt,
+                'booking_date' => $scheduledAt,
                 'status' => 'pending',
             ]);
         }

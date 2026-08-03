@@ -13,11 +13,11 @@ class ChatController extends Controller
 
     public function ask(Request $request)
     {
-        try {
-            $request->validate([
-                'message' => 'required|string'
-            ]);
+        $request->validate([
+            'message' => 'required|string'
+        ]);
 
+        try {
             $userMessage = $request->input('message');
             $apiKey = config('services.gemini.api_key');
 
@@ -69,10 +69,10 @@ Berikut adalah pertanyaan atau keluhan pelanggan: ";
             return $this->successResponse(['reply' => $aiReply], 'AI response generated successfully.');
         }
         
-        if ($response->status() === 429) {
-            return $this->errorResponse('AI sedang sibuk. Coba lagi sebentar ya.', 429);
+        if ($response->status() === 429 || $response->status() === 503) {
+            return $this->errorResponse('AI sedang sibuk atau mengalami antrean. Coba lagi sebentar ya.', $response->status(), ['reply' => 'AI sedang sibuk atau mengalami antrean. Coba lagi sebentar ya.']);
         }
 
-        return $this->errorResponse('Error dari Google: ' . $response->body(), 500);
+        return $this->errorResponse('Terjadi kesalahan pada layanan AI. Mohon coba lagi.', 500, ['reply' => 'Terjadi kesalahan pada layanan AI. Mohon coba lagi.']);
     }
 }

@@ -73,8 +73,8 @@ export function CarVisualizer({ modelUrl, carColor = '#ffffff', fallbackImage }:
 
   // We use a simple fetch to pre-check if the GLTF URL exists before rendering the Canvas
   useEffect(() => {
-    // If it's a local bundled asset (number from require()), skip HTTP check
-    if (typeof modelUrl === 'number') {
+    // If it's a local bundled asset (number from require) OR a local web asset path, skip HTTP check
+    if (typeof modelUrl === 'number' || (typeof modelUrl === 'string' && modelUrl.startsWith('/'))) {
       setHasError(false);
       return;
     }

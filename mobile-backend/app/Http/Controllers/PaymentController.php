@@ -57,14 +57,23 @@ class PaymentController extends Controller
             ],
         ];
 
-        try {
+        // Add return callback if provided by the frontend
+        if ($request->has('return_url')) {
+            $params['callbacks'] = [
+                'finish' => $request->input('return_url')
+            ];
+        }
 
-        \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
-            \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false);
-            \Midtrans\Config::$isSanitized = true;
-            \Midtrans\Config::$is3ds = true;
-            // Get Snap Token from Midtrans
-            $snapToken = Snap::getSnapToken($params);
+        try {
+            // Check if amount is valid
+            if ((int) $booking->total_price <= 0) {
+                return $this->errorResponse('Gagal membuat transaksi: Total harga belum diatur oleh mekanik (Rp 0).', 400);
+            }
+
+            // Get Snap Transaction from Midtrans (returns both token and redirect_url)
+            $snapTransaction = Snap::createTransaction($params);
+            $snapToken = $snapTransaction->token;
+            $redirectUrl = $snapTransaction->redirect_url;
 
             // Save order_id to payments table
             $payment = Payment::firstOrCreate(
@@ -76,9 +85,12 @@ class PaymentController extends Controller
                 ]
             );
             
-            // Update order_id if it already existed but was different
-            if ($payment->order_id !== $uniqueOrderId) {
-                $payment->update(['order_id' => $uniqueOrderId]);
+            // Update order_id and amount if it already existed but was different
+            if ($payment->order_id !== $uniqueOrderId || (int) $payment->amount !== (int) $booking->total_price) {
+                $payment->update([
+                    'order_id' => $uniqueOrderId,
+                    'amount' => $booking->total_price
+                ]);
             }
 
             return $this->resourceResponse(
@@ -87,12 +99,14 @@ class PaymentController extends Controller
                     'payment_id' => $payment->id,
                     'order_id' => $uniqueOrderId,
                     'snap_token' => $snapToken,
+                    'redirect_url' => $redirectUrl,
                     'amount' => $payment->amount,
-                    'client_key' => env('MIDTRANS_CLIENT_KEY', config('midtrans.client_key', 'SB-Mid-client-XXXXX')),
+                    'client_key' => config('midtrans.client_key', 'SB-Mid-client-XXXXX'),
                 ],
                 'Token pembayaran berhasil dibuat'
             );
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Midtrans Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return $this->errorResponse('Gagal membuat transaksi: ' . $e->getMessage(), 500);
         }
     }
@@ -186,9 +200,6 @@ class PaymentController extends Controller
         }
 
         try {
-            \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
-            \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false);
-
             // Fetch latest status from Midtrans API
             // Since we generated order_id as BOOK-{booking_id}-{timestamp}, 
             // and we didn't save it directly in payment table, we need to find it.

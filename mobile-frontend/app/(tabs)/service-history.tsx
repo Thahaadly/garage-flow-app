@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import twrnc from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 
 import { apiGet, getApiErrorMessage } from '@/src/lib/api';
 import type { Booking } from '@/src/types';
@@ -210,10 +210,10 @@ export default function ServiceHistoryScreen() {
           total_price: selectedBooking.total_price,
           items: selectedBooking.items,
         } : null}
-        formatScheduleDisplay={(d) => formatIndonesianDate(d)}
+        formatScheduleDisplay={formatIndonesianDate}
         onContinuePayment={() => {
           setSelectedBooking(null);
-          // router.push(`/payment?booking_id=${selectedBooking.id}`);
+          router.push(`/payment?booking_id=${selectedBooking.id}`);
         }}
       />
     </View>

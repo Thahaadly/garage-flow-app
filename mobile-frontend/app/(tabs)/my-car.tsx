@@ -7,7 +7,6 @@ import { apiPost, apiDelete, getApiErrorMessage } from '@/src/lib/api';
 import { showPlatformAlert } from '@/src/utils/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import Constants from 'expo-constants';
-import { useAuth } from '@/src/context/AuthContext';
 import { useGlobalVehicles } from '@/src/context/VehicleContext';
 import { CarVisualizer } from '@/src/features/home/components/CarVisualizer';
 import { ColorPicker } from '@/src/components/ui/ColorPicker';

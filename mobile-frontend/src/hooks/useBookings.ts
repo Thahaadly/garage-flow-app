@@ -1,24 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { apiGet, apiPost, getApiErrorMessage } from '@/src/lib/api';
-import type { Booking, Service } from '@/src/types';
+import type { Booking, Service, ActiveBookingDetails } from '@/src/types';
 
 export function useBookings(services: Service[]) {
   const [hasActiveBooking, setHasActiveBooking] = useState(false);
   const [bookingHistory, setBookingHistory] = useState<Booking[]>([]);
   const [activeBookingLabel, setActiveBookingLabel] = useState('');
   const [activeBookingStatus, setActiveBookingStatus] = useState('');
-  const [activeBookingDetails, setActiveBookingDetails] = useState<
-    | {
-        id: number;
-        serviceName: string;
-        scheduledAt: string;
-        status: string;
-        total_price: number;
-        items: any[];
-      }
-    | null
-  >(null);
+  const [activeBookingDetails, setActiveBookingDetails] = useState<ActiveBookingDetails | null>(null);
 
   const [bookingError, setBookingError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
