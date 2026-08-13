@@ -240,9 +240,9 @@ export default function MyCarScreen() {
                       const modelName = currentVehicle.model.toLowerCase().replace(/ /g, '_');
                       let modelAsset: any = null;
                       if (currentVehicle.brand.toLowerCase() === 'toyota' && currentVehicle.model.toLowerCase().includes('fortuner')) {
-                        modelAsset = require('../../assets/models/toyota_fortuner.glb');
+                        modelAsset = Platform.OS === 'web' ? '/models/toyota_fortuner.glb' : require('../../assets/models/toyota_fortuner.glb');
                       } else if (currentVehicle.model.toLowerCase().includes('innova')) {
-                        modelAsset = require('../../assets/models/innova_zenix_simple.glb');
+                        modelAsset = Platform.OS === 'web' ? '/models/innova_zenix_simple.glb' : require('../../assets/models/innova_zenix_simple.glb');
                       }
                       
                       return (

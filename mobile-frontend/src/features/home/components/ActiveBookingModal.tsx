@@ -9,6 +9,9 @@ type ActiveBookingModalProps = {
   details: ActiveBookingDetails | null;
   formatScheduleDisplay: (scheduledAt: string) => string;
   onContinuePayment?: () => void;
+  onFinish?: () => void;
+  onCheckStatus?: () => void;
+  isCheckingStatus?: boolean;
 };
 
 export function ActiveBookingModal({
@@ -17,6 +20,9 @@ export function ActiveBookingModal({
   details,
   formatScheduleDisplay,
   onContinuePayment,
+  onFinish,
+  onCheckStatus,
+  isCheckingStatus,
 }: ActiveBookingModalProps) {
   const tw = twrnc;
 
@@ -101,7 +107,7 @@ export function ActiveBookingModal({
           ) : (
             <Pressable
               style={tw`w-full rounded-xl ${isConfirmed ? 'bg-green-600' : 'bg-red-600'} px-4 py-3`}
-              onPress={onClose}>
+              onPress={isConfirmed && onFinish ? onFinish : onClose}>
               <Text style={tw`text-center text-sm font-bold text-white`}>
                 {isConfirmed ? 'Tutup & Selesai' : 'Tutup'}
               </Text>

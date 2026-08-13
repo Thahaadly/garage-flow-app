@@ -105,6 +105,11 @@ api.interceptors.request.use(async (config) => {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
 
+  // Bypass DOM Cloud Safe Page on native devices
+  if (Platform.OS !== 'web') {
+    config.headers.set('Referer', 'https://garageflow-api.sgp.dom.my.id/');
+  }
+
   return config;
 });
 

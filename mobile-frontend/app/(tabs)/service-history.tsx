@@ -10,8 +10,9 @@ import twrnc from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
 
-import { apiGet, getApiErrorMessage } from '@/src/lib/api';
+import { apiGet, apiPut, getApiErrorMessage } from '@/src/lib/api';
 import type { Booking } from '@/src/types';
+import { showPlatformAlert } from '@/src/utils/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatRupiah, formatIndonesianDate } from '@/src/utils/format';
 import { ActiveBookingModal } from '@/src/features/home/components';
@@ -23,6 +24,7 @@ export default function ServiceHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   const loadBookings = useCallback(async () => {
     setError('');
@@ -48,6 +50,33 @@ export default function ServiceHistoryScreen() {
       loadBookings();
     }, [loadBookings])
   );
+
+  const handleCheckStatus = async () => {
+    if (!selectedBooking?.id) return;
+    
+    setIsCheckingStatus(true);
+    try {
+      await apiGet(`/payments/${selectedBooking.id}/sync-status`);
+      await loadBookings();
+      setSelectedBooking(null); // Tutup modal setelah sukses
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  const handleFinishBooking = async () => {
+    if (!selectedBooking?.id) return;
+    try {
+      await apiPut(`/bookings/${selectedBooking.id}`, { status: 'completed' });
+      setSelectedBooking(null);
+      await loadBookings();
+    } catch (e) {
+      console.error('Failed to complete booking', e);
+      setSelectedBooking(null);
+    }
+  };
 
   const getStatusBadge = (status: string | undefined | null) => {
     switch (status) {
@@ -215,6 +244,9 @@ export default function ServiceHistoryScreen() {
           setSelectedBooking(null);
           router.push(`/payment?booking_id=${selectedBooking.id}`);
         }}
+        isCheckingStatus={isCheckingStatus}
+        onCheckStatus={handleCheckStatus}
+        onFinish={handleFinishBooking}
       />
     </View>
   );

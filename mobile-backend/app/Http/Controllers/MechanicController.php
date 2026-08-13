@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\BookingItem;
 use App\Http\Responses\ApiResponse;
+use App\Http\Resources\BookingResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\PushNotificationService;
@@ -138,8 +139,8 @@ class MechanicController extends Controller
         $bookings = Booking::with('service', 'user', 'vehicle')
             ->where('status', 'completed')
             ->orderBy('updated_at', 'desc')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
-        return $this->resourceResponse($bookings, 'Riwayat Pekerjaan Mekanik');
+        return $this->paginatedResponse($bookings, BookingResource::class, 'Riwayat Pekerjaan Mekanik');
     }
 }

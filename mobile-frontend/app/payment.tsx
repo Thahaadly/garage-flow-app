@@ -8,6 +8,7 @@ import * as Linking from 'expo-linking';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { showPlatformAlert } from '@/src/utils/alert';
+import { Ionicons } from '@expo/vector-icons';
 
 type SnapResponse = {
   data: {
@@ -72,11 +73,18 @@ export default function PaymentScreen() {
 
 
 
-  const handleNavigationStateChange = (navState: any) => {
+  const handleNavigationStateChange = async (navState: any) => {
     if (navState.url.includes('transaction_status=settlement') || navState.url.includes('transaction_status=capture')) {
-      showPlatformAlert('Sukses', 'Pembayaran berhasil diselesaikan!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
-      ]);
+      // Otomatis sinkronisasi status ke backend saat Midtrans melempar URL sukses (Bypass Lokal)
+      try {
+        if (booking_id) {
+          await apiGet(`/payments/${booking_id}/sync-status`);
+        }
+      } catch (e) {
+        console.error('Auto-sync failed:', e);
+      }
+
+      router.replace('/(tabs)');
     } else if (navState.url.includes('transaction_status=cancel') || navState.url.includes('transaction_status=deny')) {
       showPlatformAlert('Batal', 'Pembayaran dibatalkan atau ditolak.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') }
@@ -120,13 +128,33 @@ export default function PaymentScreen() {
 
     return (
       <View style={styles.container}>
+        {/* Header Bar untuk WebView (Mobile Only) */}
+        {Platform.OS !== 'web' && (
+          <View style={tw`h-14 bg-white border-b border-slate-200 flex-row items-center px-4 pt-1 shadow-sm`}>
+            <Ionicons name="arrow-back" size={24} color="#dc2626" onPress={() => router.back()} />
+            <ThemedText style={tw`text-slate-800 font-bold ml-3 text-lg flex-1`}>
+              Pembayaran
+            </ThemedText>
+            <ThemedText 
+              style={tw`text-red-600 font-bold text-sm`} 
+              onPress={() => {
+                showPlatformAlert('Batal', 'Yakin ingin membatalkan pembayaran saat ini?', [
+                  { text: 'Tidak', style: 'cancel' },
+                  { text: 'Ya, Batal', style: 'destructive', onPress: () => router.back() }
+                ]);
+              }}
+            >
+              Batal
+            </ThemedText>
+          </View>
+        )}
         <WebView
           source={{ uri: redirectUrl }}
           onNavigationStateChange={handleNavigationStateChange}
           startInLoadingState={true}
           renderLoading={() => (
             <View style={[StyleSheet.absoluteFill, twrnc`items-center justify-center bg-white`]}>
-              <ActivityIndicator size="large" color="#0f172a" />
+              <ActivityIndicator size="large" color="#dc2626" />
             </View>
           )}
         />

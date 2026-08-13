@@ -2,7 +2,9 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { ScrollView, Text, View, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import twrnc from 'twrnc';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useGlobalSearchParams } from 'expo-router';
+import { apiGet, apiPut } from '@/src/lib/api';
+import { showPlatformAlert } from '@/src/utils/alert';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -26,6 +28,10 @@ export default function HomeScreen() {
   const [isBookingModalVisible, setIsBookingModalVisible] = useState(false);
   const [isActiveBookingModalVisible, setIsActiveBookingModalVisible] = useState(false);
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
+  // Tangkap query param jika kembali dari Midtrans web (redirect) menggunakan Global Params
+  const { transaction_status, order_id } = useGlobalSearchParams<{ transaction_status?: string, order_id?: string }>();
 
   // Booking selections
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -66,6 +72,26 @@ export default function HomeScreen() {
     ]);
     setRefreshing(false);
   }, [loadVehicles, reloadBookings, loadServices]);
+
+  // Efek khusus untuk Auto-Sync di mode Web
+  useEffect(() => {
+    const handleWebAutoSync = async () => {
+      // Jika ada order_id berawalan BOOK-, berarti user baru kembali dari Midtrans
+      if (order_id && order_id.startsWith('BOOK-')) {
+        const id = order_id.split('-')[1];
+        try {
+          await apiGet(`/payments/${id}/sync-status`);
+          await reloadBookings();
+          
+          // Bersihkan parameter dari URL agar tidak terpanggil ulang (khusus web)
+          router.replace('/(tabs)');
+        } catch (e) {
+          console.error('Web auto-sync failed', e);
+        }
+      }
+    };
+    handleWebAutoSync();
+  }, [transaction_status, order_id]);
 
   const selectedDateString = useMemo(() => {
     const year = selectedDate.getFullYear();
@@ -153,6 +179,33 @@ export default function HomeScreen() {
 
   const formatScheduleDisplay = (scheduledAt: string) => {
     return scheduledAt ? scheduledAt.replace('T', ' ') : '-';
+  };
+
+  const handleCheckStatus = async () => {
+    if (!activeBookingDetails?.id) return;
+    
+    setIsCheckingStatus(true);
+    try {
+      await apiGet(`/payments/${activeBookingDetails.id}/sync-status`);
+      await reloadBookings();
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  const handleFinishBooking = async () => {
+    if (!activeBookingDetails?.id) return;
+    try {
+      // Ubah status ke completed agar hilang dari beranda dan dianggap selesai
+      await apiPut(`/bookings/${activeBookingDetails.id}`, { status: 'completed' });
+      setIsActiveBookingModalVisible(false);
+      await reloadBookings();
+    } catch (e) {
+      console.error('Failed to complete booking', e);
+      setIsActiveBookingModalVisible(false);
+    }
   };
 
   return (
@@ -293,6 +346,9 @@ export default function HomeScreen() {
             router.push(`/payment?booking_id=${activeBookingDetails.id}`);
           }
         }}
+        isCheckingStatus={isCheckingStatus}
+        onCheckStatus={handleCheckStatus}
+        onFinish={handleFinishBooking}
       />
       <SuccessModal
         visible={isSuccessModalVisible}

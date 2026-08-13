@@ -153,19 +153,17 @@ class PaymentController extends Controller
         $transactionStatus = $payload['transaction_status'] ?? '';
         $fraudStatus = $payload['fraud_status'] ?? '';
 
-        if ($transactionStatus == 'capture') {
-            if ($fraudStatus == 'accept') {
+        if ($transactionStatus == 'capture' && $fraudStatus == 'accept') {
+            $transactionStatus = 'settlement'; // Normalize to settlement for success
+        }
+
+        if ($transactionStatus == 'settlement') {
+            if ($payment->status !== 'paid') {
                 $payment->update(['status' => 'paid']);
                 $booking->update(['status' => 'confirmed']);
                 if ($booking->user) {
                     PushNotificationService::send($booking->user, 'Pembayaran Berhasil', 'Terima kasih, pembayaran Anda telah kami terima.');
                 }
-            }
-        } else if ($transactionStatus == 'settlement') {
-            $payment->update(['status' => 'paid']);
-            $booking->update(['status' => 'confirmed']);
-            if ($booking->user) {
-                PushNotificationService::send($booking->user, 'Pembayaran Berhasil', 'Terima kasih, pembayaran Anda telah kami terima.');
             }
         } else if (
             $transactionStatus == 'cancel' ||
@@ -200,30 +198,40 @@ class PaymentController extends Controller
         }
 
         try {
-            // Fetch latest status from Midtrans API
-            // Since we generated order_id as BOOK-{booking_id}-{timestamp}, 
-            // and we didn't save it directly in payment table, we need to find it.
-            // Wait, if we can't find order_id easily, we can just fetch all payments 
-            // Or better: In createTransaction, we SHOULD have saved order_id!
-            // Actually, since we didn't, let's just search by scanning or assuming standard format.
-            // Wait, Midtrans API allows fetching by order_id. We don't have order_id!
-            // Let me check if Payment model has a custom column, or I can just use $payment->order_id?
-            // Actually, we don't have order_id in DB, but Midtrans PHP SDK throws 404 if not found.
-            // Wait, if we can't sync via API because we don't know the exact timestamp of order_id...
-            // Since this is for local dev, let's just blindly update it to confirmed if they call this endpoint!
-            // This is ONLY for local development bypass. In production, webhooks handle this.
-            
-            // To be slightly more secure, we'll only do it if status is pending_payment
-            if ($booking->status === 'pending_payment' || $booking->status === 'pending') {
-                $payment->update(['status' => 'paid']);
-                $booking->update(['status' => 'confirmed']);
-                if ($booking->user) {
-                    PushNotificationService::send($booking->user, 'Pembayaran Berhasil', 'Terima kasih, pembayaran Anda telah kami terima.');
-                }
-                return $this->resourceResponse(['status' => 'confirmed'], 'Status disinkronisasi ke LUNAS secara paksa (Local Dev)');
+            if (!$payment->order_id) {
+                return $this->errorResponse('Gagal sinkronisasi: ID Pesanan Midtrans tidak ditemukan.', 400);
             }
 
-            return $this->resourceResponse(['status' => $booking->status], 'Status tidak berubah');
+            // [FITUR DEV LOKAL] Bypass otomatis jika di environment local agar mempermudah testing
+            // tanpa harus repot buka simulator Midtrans berulang kali.
+            if (app()->environment('local')) {
+                if ($payment->status !== 'paid') {
+                    $payment->update(['status' => 'paid']);
+                    $booking->update(['status' => 'confirmed']);
+                }
+                return $this->resourceResponse(['status' => 'confirmed'], 'BYPASS LOKAL: Status dipaksa lunas untuk kemudahan testing');
+            }
+
+            // Fetch latest status from Midtrans API (Berjalan di Production)
+            $midtransStatus = \Midtrans\Transaction::status($payment->order_id);
+            $transactionStatus = $midtransStatus->transaction_status;
+
+            if (in_array($transactionStatus, ['settlement', 'capture'])) {
+                if ($payment->status !== 'paid') {
+                    $payment->update(['status' => 'paid']);
+                    $booking->update(['status' => 'confirmed']);
+                    if ($booking->user) {
+                        PushNotificationService::send($booking->user, 'Pembayaran Berhasil', 'Terima kasih, pembayaran Anda telah kami terima.');
+                    }
+                }
+                return $this->resourceResponse(['status' => 'confirmed'], 'Status berhasil disinkronisasi dengan Midtrans');
+            } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                $payment->update(['status' => 'failed']);
+                $booking->update(['status' => 'cancelled']);
+                return $this->resourceResponse(['status' => 'cancelled'], 'Pembayaran telah dibatalkan atau kedaluwarsa');
+            }
+
+            return $this->resourceResponse(['status' => $booking->status], 'Status di Midtrans masih pending');
 
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal sinkronisasi: ' . $e->getMessage(), 500);

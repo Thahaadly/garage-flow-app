@@ -53,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('bookings/{booking}', [BookingController::class, 'update']);
     Route::get('schedules', [BookingController::class, 'schedules']);
     Route::apiResource('vehicles', \App\Http\Controllers\VehicleController::class);
+    
+    // AI Chat Route (Protected & Throttled)
+    Route::post('chat', [ChatController::class, 'ask'])->middleware('throttle:10,1');
 });
 
 Route::get('spareparts', [SparepartController::class, 'index']);
@@ -60,7 +63,6 @@ Route::get('spareparts/search', [SparepartController::class, 'search']);
 Route::get('spareparts/{sparepart}', [SparepartController::class, 'show']);
 Route::get('categories', [SparepartController::class, 'categories']);
 Route::get('brands', [SparepartController::class, 'brands']);
-Route::post('chat', [ChatController::class, 'ask']);
 
 Route::middleware(['auth:sanctum', 'role:Admin'])->prefix('admin')->group(function () {
     Route::get('bookings', [AdminBookingController::class, 'index']);

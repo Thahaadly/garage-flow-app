@@ -34,29 +34,8 @@ class BookingController extends Controller
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 10));
 
-        // Auto-sync status with Midtrans for pending_payment
-        foreach ($bookings as $booking) {
-            if ($booking->status === 'pending_payment') {
-                $payment = \App\Models\Payment::where('booking_id', $booking->id)->first();
-                if ($payment && $payment->order_id) {
-                    try {
-                        \Midtrans\Config::$serverKey = config('midtrans.server_key');
-                        \Midtrans\Config::$isProduction = config('midtrans.is_production');
-                        $midtransStatus = \Midtrans\Transaction::status($payment->order_id);
-                        
-                        if (in_array($midtransStatus->transaction_status, ['settlement', 'capture'])) {
-                            $booking->update(['status' => 'confirmed']);
-                            $payment->update(['status' => 'paid']);
-                        } elseif (in_array($midtransStatus->transaction_status, ['cancel', 'deny', 'expire'])) {
-                            $booking->update(['status' => 'cancelled']);
-                            $payment->update(['status' => 'failed']);
-                        }
-                    } catch (\Exception $e) {
-                        // Ignore if transaction not found in Midtrans
-                    }
-                }
-            }
-        }
+        // Sinkronisasi otomatis Midtrans dihapus untuk mencegah bug N+1 API Timeout. 
+        // Pembaruan status diandalkan sepenuhnya pada Webhook (Background Process).
 
         // Use custom resource or paginatedResponse if BookingResource hasn't been updated for new columns
         // For simplicity we will just return it as a resource response
