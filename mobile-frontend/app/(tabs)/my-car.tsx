@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View, Text, TextInput, RefreshControl } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View, Text, TextInput, RefreshControl, Platform } from 'react-native';
 import twrnc from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
 
