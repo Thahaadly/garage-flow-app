@@ -45,3 +45,6 @@ app-example
 # Ignore large 3D models (>100MB)
 assets/models/toyota_fortuner.glb
 public/models/
+
+# Ignore local env files completely
+.env
